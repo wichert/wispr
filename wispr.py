@@ -1,0 +1,163 @@
+#!/usr/bin/python
+from __future__ import print_function
+import argparse
+import re
+import sys
+import xml.sax.saxutils
+import urlparse
+import requests
+
+
+MSG_REDIRECT = '100'
+MSG_PROXY = '110'
+MSG_AUTHENTICATION = '120'
+MSG_LOGOFF = '130'
+MSG_AUTH_POLL_REPONSE = '140'
+MSG_ABORT_LOGIN_RESPONSE = '150'
+
+RES_SUCCESS = '0'
+RES_LOGIN_SUCCESS = '50'
+RES_LOGIN_FAILED = '100'
+RES_AUTH_ERROR = '102'
+RES_NETWORK_ADMIN_ERROR = '105'
+RES_LOGOFF_SUCCESS = '150'
+RES_LOGIN_ABORT = '151'
+RES_PROXY_DETECTION = '200'
+RES_AUTH_PENDING = '201'
+RES_INTERNAL_ERROR = '255'
+
+
+def parse_wispr(r):
+    m = re.search(
+            r'<WISPAccessGatewayParam.*?>(.*)</WISPAccessGatewayParam>',
+            r.content, re.I|re.S)
+    data = {}
+    if m is None:
+        return data
+    for (key, value) in re.findall(r'<(.*?)>(.*?)</\1>', m.group(1)):
+        if value.startswith('CDATA[['):
+            data[key] = value[7:-2]
+        else:
+            data[key] = xml.sax.saxutils.unescape(value)
+    return data
+
+
+def do_wispr(r, username, password):
+    data = parse_wispr(r)
+    while data['MessageType'] == MSG_PROXY and \
+            data['ResponseCode'] == RES_SUCCESS:
+        delay = int(data.get('Delay', '0'))
+        print('Following proxy redirect with %d seconds delay' % delay)
+        if delay:
+            time.sleep(delay)
+        r = request.get(data.get('NextURL', r.url))
+        data = parse_wispr(r)
+
+    assert data['MessageType'] == MSG_REDIRECT and \
+            data['ResponseCode'] == RES_SUCCESS
+    form = {'UserName': username}
+    if data.get('VersionHigh') == '2.0':
+        print('Attempting WISPr2 login')
+        form['WISPrVersion'] = '2.0'
+        form['Password'] = password
+    else:
+        print('Attempting WISPr1 login')
+        form['Password'] = password
+        form['button'] = 'Login'
+        form['FNAME'] = '0'
+        form['OriginatingServer'] = 'http://www.google.com'
+
+    print('Submitting credentials to %s' % data['LoginURL'])
+    r = requests.post(data['LoginURL'], data=form, allow_redirects=False)
+    data = parse_wispr(r)
+    assert data['MessageType'] == MSG_AUTHENTICATION
+    if data.get('ReplyMessage'):
+        print('Server says: %s' % data['ReplyMessage'])
+
+    while data['ResponseCode'] == RES_AUTH_PENDING:
+        delay = int(data.get('Delay', '0'))
+        print('Need to poll for status at %s with %d seconds delay' %
+                (data['LoginResultsURL'], delay))
+        if delay:
+            time.sleep(delay)
+        r = requests.get(data['LoginResultsURL'], allow_redirects=False)
+        data = parse_wispr(r)
+        if data.get('ReplyMessage'):
+            print('Server says: %s' % data['ReplyMessage'])
+
+    if data['ResponseCode'] == RES_LOGIN_SUCCESS:
+        print('Login succeeded')
+        return True
+    elif data['ResponseCode'] == RES_LOGIN_FAILED:
+        print('Login failed')
+        return False
+    else:
+        print('DAMNIT!')
+        print(data)
+
+
+def detect():
+    r = requests.get('http://www.google.com', allow_redirects=False)
+    while r.status_code in [302, 304]:
+        if 'WISPAccessGatewayParam' in r.content:
+            break
+        else:
+            r = requests.get(r.headers['Location'])
+    if 'WISPAccessGatewayParam' not in r.content:
+        if 'google' in urlparse.urlparse(r.url).hostname:
+            print('Already online, no WISPr detection possible')
+        else:
+            print('No WISPr gateway found')
+        return False
+    data = parse_wispr(r)
+    print('WISPr location: %s' % data['LocationName'])
+    if 'VersionHigh' in data:
+        print('Supported WISPr versions: %s to %s' %
+                (data['VersionLow'], data['VersionHigh']))
+    else:
+        print('Supported WISPr versions: %s' % data['AccessProcedure'])
+    return True
+
+
+def wispr(username, password, detect_only=False):
+    r = requests.get('http://www.google.com', allow_redirects=False)
+    while r.status_code in [302, 304]:
+        if 'WISPAccessGatewayParam' in r.content:
+            break
+        else:
+            r = requests.get(r.headers['Location'])
+    if 'WISPAccessGatewayParam' in r.content:
+        return do_wispr(r, username, password)
+    host = urlparse.urlparse(r.url).hostname
+    if 'google' in host:
+        print('Already online, aborting')
+        return True
+    else:
+        print('No WISPr gateway detected, aborting')
+        return False
+    
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('username', nargs='?')
+    parser.add_argument('password', nargs='?')
+    parser.add_argument('-D', '--detect', default=False, action='store_true',
+            help='Only detect WISPr support')
+    options = parser.parse_args()
+    if not (options.detect or options.password):
+        print('You must provide a username and password', file=sys.stderr)
+        sys.exit(2)
+
+    try:
+        if options.detect:
+            return detect()
+        else:
+            return wispr(options.username, options.password, options.detect)
+    except requests.exceptions.ConnectionError as e:
+        print('Error connecting to server: %s' % e)
+    except KeyboardInterrupt:
+        print('Aborting')
+        return False
+
+if __name__ == '__main__':
+    sys.exit(0 if main() else 1)
