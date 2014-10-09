@@ -1,9 +1,10 @@
 from setuptools import find_packages
 from setuptools import setup
 
-version = '1.0'
+version = '0.1'
 
 setup(
+        version=version,
         name='wispr',
         description='WISPr command line client',
         long_description=open('README.rst').read(),
