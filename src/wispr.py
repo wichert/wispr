@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import print_function
 import argparse
+import os
 import re
 import sys
 import xml.sax.saxutils
@@ -42,7 +43,25 @@ def parse_wispr(r):
     return data
 
 
-def do_wispr(r, username, password):
+def save_logout_url(url):
+    fn = os.path.expanduser('~/.wispr')
+    if not url and os.path.exists(fn):
+        os.unlink(fn)
+    else:
+        with open(fn, 'w') as output:
+            print(url, file=output)
+
+
+def load_logout_url():
+    fn = os.path.expanduser('~/.wispr')
+    try:
+        with open(fn, 'r') as input:
+            return input.readline().strip()
+    except IOError:
+        return None
+
+
+def do_wispr_login(r, username, password):
     data = parse_wispr(r)
     while data['MessageType'] == MSG_PROXY and \
             data['ResponseCode'] == RES_SUCCESS:
@@ -86,6 +105,7 @@ def do_wispr(r, username, password):
             print('Server says: %s' % data['ReplyMessage'])
 
     if data['ResponseCode'] == RES_LOGIN_SUCCESS:
+        save_logout_url(data.get('LogoffURL'))
         print('Login succeeded')
         return True
     elif data['ResponseCode'] == RES_LOGIN_FAILED:
@@ -119,7 +139,7 @@ def detect():
     return True
 
 
-def wispr(username, password, detect_only=False):
+def wispr_login(username, password):
     r = requests.get('http://www.google.com', allow_redirects=False)
     while r.status_code in [302, 304]:
         if 'WISPAccessGatewayParam' in r.content:
@@ -127,7 +147,7 @@ def wispr(username, password, detect_only=False):
         else:
             r = requests.get(r.headers['Location'])
     if 'WISPAccessGatewayParam' in r.content:
-        return do_wispr(r, username, password)
+        return do_wispr_login(r, username, password)
     host = urlparse.urlparse(r.url).hostname
     if 'google' in host:
         print('Already online, aborting')
@@ -137,22 +157,52 @@ def wispr(username, password, detect_only=False):
         return False
     
 
+def wispr_logout():
+    logoff_url = load_logout_url()
+    if not logoff_url:
+        print('No logoff URL known, can not log off', file=sys.stderr)
+        return False
+    r = requests.get(logoff_url, allow_redirects=False)
+    if r.status_code not in [200, 302]:
+        print('Illegal response to logoff request: %d' % r.status_code,
+                file=sys.stderr)
+        return False
+    data = parse_wispr(r)
+    if not data:
+        print('No WISPr response found at logoff URL')
+        return False
+    if data['MessageType'] != MSG_LOGOFF:
+        import pdb ; pdb.set_trace()
+        print('Invalid message type for logoff response: %s' %
+                data['MessageType'], file=sys.stderr)
+        return False
+    if data['ResponseCode'] != RES_LOGOFF_SUCCESS:
+        print('Logoff failed')
+        return False
+    print('Logoff succeeded')
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('username', nargs='?')
     parser.add_argument('password', nargs='?')
+    parser.add_argument('--logout', default=False, action='store_true',
+            help='Log off')
     parser.add_argument('-D', '--detect', default=False, action='store_true',
             help='Only detect WISPr support')
     options = parser.parse_args()
-    if not (options.detect or options.password):
+    if not (options.detect or options.logout or options.password):
         print('You must provide a username and password', file=sys.stderr)
         sys.exit(2)
 
     try:
         if options.detect:
             return detect()
+        elif options.logout:
+            wispr_logout()
         else:
-            return wispr(options.username, options.password, options.detect)
+            return wispr_login(options.username, options.password)
     except requests.exceptions.ConnectionError as e:
         print('Error connecting to server: %s' % e)
     except KeyboardInterrupt:
