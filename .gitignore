@@ -1,0 +1,12 @@
+*.sw[opqr]
+*.py[co]
+
+wispr.egg-info
+
+/build
+/dist
+
+/.Python
+/bin
+/include
+/lib
