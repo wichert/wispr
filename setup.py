@@ -6,7 +6,7 @@ version = '1.0'
 setup(
         name='wispr',
         description='WISPr command line client',
-        long_description='',
+        long_description=open('README.rst').read(),
         keywords='wispr wifi hotspot',
         classifiers=[
             'Environment :: Console',
