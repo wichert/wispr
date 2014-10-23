@@ -187,7 +187,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('username', nargs='?')
     parser.add_argument('password', nargs='?')
-    parser.add_argument('--logout', default=False, action='store_true',
+    parser.add_argument('-L', '--logout', default=False, action='store_true',
             help='Log off')
     parser.add_argument('-D', '--detect', default=False, action='store_true',
             help='Only detect WISPr support')
