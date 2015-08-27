@@ -94,13 +94,15 @@ def do_wispr_login(r, username, password):
     if data.get('ReplyMessage'):
         print('Server says: %s' % data['ReplyMessage'])
 
+    login_results_url = None
     while data['ResponseCode'] == RES_AUTH_PENDING:
+        login_results_url = data.get('LoginResultsURL', login_results_url)
         delay = int(data.get('Delay', '0'))
         print('Need to poll for status at %s with %d seconds delay' %
-                (data['LoginResultsURL'], delay))
+                (login_results_url, delay))
         if delay:
             time.sleep(delay)
-        r = requests.get(data['LoginResultsURL'], allow_redirects=False)
+        r = requests.get(login_results_url, allow_redirects=False, verify=False)
         data = parse_wispr(r)
         if data.get('ReplyMessage'):
             print('Server says: %s' % data['ReplyMessage'])
