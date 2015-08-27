@@ -175,7 +175,6 @@ def wispr_logout():
         print('No WISPr response found at logoff URL')
         return False
     if data['MessageType'] != MSG_LOGOFF:
-        import pdb ; pdb.set_trace()
         print('Invalid message type for logoff response: %s' %
                 data['MessageType'], file=sys.stderr)
         return False
