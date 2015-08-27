@@ -31,12 +31,12 @@ RES_INTERNAL_ERROR = '255'
 
 def parse_wispr(r):
     m = re.search(
-            r'<WISPAccessGatewayParam.*?>(.*)</WISPAccessGatewayParam>',
+            r'<WISPAccessGatewayParam.*?>\s*<(.*?)>(.*)</\1>\s*</WISPAccessGatewayParam>',
             r.content, re.I|re.S)
     data = {}
     if m is None:
         return data
-    for (key, value) in re.findall(r'<(.*?)>(.*?)</\1>', m.group(1)):
+    for (key, value) in re.findall(r'<(.*?)>(.*?)</\1>', m.group(2)):
         if value.startswith('CDATA[['):
             data[key] = value[7:-2]
         else:
