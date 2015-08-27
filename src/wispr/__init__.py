@@ -4,6 +4,7 @@ import argparse
 import os
 import re
 import sys
+import time
 import xml.sax.saxutils
 import urlparse
 import requests
