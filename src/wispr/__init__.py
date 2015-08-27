@@ -70,7 +70,7 @@ def do_wispr_login(r, username, password):
         print('Following proxy redirect with %d seconds delay' % delay)
         if delay:
             time.sleep(delay)
-        r = request.get(data.get('NextURL', r.url))
+        r = request.get(data.get('NextURL', r.url), verify=False)
         data = parse_wispr(r)
 
     assert data['MessageType'] == MSG_REDIRECT and \
@@ -88,7 +88,7 @@ def do_wispr_login(r, username, password):
         form['OriginatingServer'] = 'http://www.google.com'
 
     print('Submitting credentials to %s' % data['LoginURL'])
-    r = requests.post(data['LoginURL'], data=form, allow_redirects=False)
+    r = requests.post(data['LoginURL'], data=form, allow_redirects=False, verify=False)
     data = parse_wispr(r)
     assert data['MessageType'] == MSG_AUTHENTICATION
     if data.get('ReplyMessage'):
@@ -118,12 +118,12 @@ def do_wispr_login(r, username, password):
 
 
 def detect():
-    r = requests.get('http://www.google.com', allow_redirects=False)
+    r = requests.get('http://www.google.com', allow_redirects=False, verify=False)
     while r.status_code in [302, 304]:
         if 'WISPAccessGatewayParam' in r.content:
             break
         else:
-            r = requests.get(r.headers['Location'])
+            r = requests.get(r.headers['Location'], allow_redirects=False, verify=False)
     if 'WISPAccessGatewayParam' not in r.content:
         if 'google' in urlparse.urlparse(r.url).hostname:
             print('Already online, no WISPr detection possible')
@@ -141,12 +141,12 @@ def detect():
 
 
 def wispr_login(username, password):
-    r = requests.get('http://www.google.com', allow_redirects=False)
+    r = requests.get('http://www.google.com', allow_redirects=False, verify=False)
     while r.status_code in [302, 304]:
         if 'WISPAccessGatewayParam' in r.content:
             break
         else:
-            r = requests.get(r.headers['Location'])
+            r = requests.get(r.headers['Location'], allow_redirects=False, verify=False)
     if 'WISPAccessGatewayParam' in r.content:
         return do_wispr_login(r, username, password)
     host = urlparse.urlparse(r.url).hostname
@@ -163,7 +163,7 @@ def wispr_logout():
     if not logoff_url:
         print('No logoff URL known, can not log off', file=sys.stderr)
         return False
-    r = requests.get(logoff_url, allow_redirects=False)
+    r = requests.get(logoff_url, allow_redirects=False, verify=False)
     if r.status_code not in [200, 302]:
         print('Illegal response to logoff request: %d' % r.status_code,
                 file=sys.stderr)
