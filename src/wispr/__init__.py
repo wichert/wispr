@@ -179,7 +179,10 @@ def wispr_logout():
                 data['MessageType'], file=sys.stderr)
         return False
     if data['ResponseCode'] != RES_LOGOFF_SUCCESS:
-        print('Logoff failed')
+        if data['ResponseCode'] == RES_INTERNAL_ERROR:
+            print ('Internal error from WISPr server')
+        else:
+            print('Logoff failed, error %s' % data['ResponseCode'])
         return False
     print('Logoff succeeded')
     return True
