@@ -35,7 +35,7 @@ RES_INTERNAL_ERROR = '255'
 def parse_wispr(r):
     m = re.search(
             r'<WISPAccessGatewayParam.*?>\s*<(.*?)>(.*)</\1>\s*</WISPAccessGatewayParam>',
-            r.text, re.I|re.S)
+            r.text, re.I | re.S)
     data = {}
     if m is None:
         return data
@@ -73,7 +73,7 @@ def do_wispr_login(r, username, password):
         print('Following proxy redirect with %d seconds delay' % delay)
         if delay:
             time.sleep(delay)
-        r = request.get(data.get('NextURL', r.url), verify=False)
+        r = requests.get(data.get('NextURL', r.url), verify=False)
         data = parse_wispr(r)
 
     assert data['MessageType'] == MSG_REDIRECT and \
@@ -161,7 +161,7 @@ def wispr_login(username, password):
     else:
         print('No WISPr gateway detected, aborting')
         return False
-    
+
 
 def wispr_logout():
     logoff_url = load_logout_url()
@@ -183,7 +183,7 @@ def wispr_logout():
         return False
     if data['ResponseCode'] != RES_LOGOFF_SUCCESS:
         if data['ResponseCode'] == RES_INTERNAL_ERROR:
-            print ('Internal error from WISPr server')
+            print('Internal error from WISPr server')
         else:
             print('Logoff failed, error %s' % data['ResponseCode'])
         return False
