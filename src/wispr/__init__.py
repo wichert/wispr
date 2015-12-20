@@ -6,7 +6,10 @@ import re
 import sys
 import time
 import xml.sax.saxutils
-import urlparse
+try:
+    import urlparse
+except ImportError:
+    import urllib.parse as urlparse
 import requests
 
 
@@ -32,7 +35,7 @@ RES_INTERNAL_ERROR = '255'
 def parse_wispr(r):
     m = re.search(
             r'<WISPAccessGatewayParam.*?>\s*<(.*?)>(.*)</\1>\s*</WISPAccessGatewayParam>',
-            r.content, re.I|re.S)
+            r.text, re.I|re.S)
     data = {}
     if m is None:
         return data
@@ -122,11 +125,11 @@ def do_wispr_login(r, username, password):
 def detect():
     r = requests.get('http://www.google.com', allow_redirects=False, verify=False)
     while r.status_code in [302, 304]:
-        if 'WISPAccessGatewayParam' in r.content:
+        if 'WISPAccessGatewayParam' in r.text:
             break
         else:
             r = requests.get(r.headers['Location'], allow_redirects=False, verify=False)
-    if 'WISPAccessGatewayParam' not in r.content:
+    if 'WISPAccessGatewayParam' not in r.text:
         if 'google' in urlparse.urlparse(r.url).hostname:
             print('Already online, no WISPr detection possible')
         else:
@@ -145,11 +148,11 @@ def detect():
 def wispr_login(username, password):
     r = requests.get('http://www.google.com', allow_redirects=False, verify=False)
     while r.status_code in [302, 304]:
-        if 'WISPAccessGatewayParam' in r.content:
+        if 'WISPAccessGatewayParam' in r.text:
             break
         else:
             r = requests.get(r.headers['Location'], allow_redirects=False, verify=False)
-    if 'WISPAccessGatewayParam' in r.content:
+    if 'WISPAccessGatewayParam' in r.text:
         return do_wispr_login(r, username, password)
     host = urlparse.urlparse(r.url).hostname
     if 'google' in host:

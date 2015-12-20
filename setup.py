@@ -1,7 +1,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-version = '1.0'
+version = '1.1'
 
 setup(
         version=version,
@@ -15,6 +15,11 @@ setup(
             'License :: OSI Approved :: BSD License',
             'Operating System :: OS Independent',
             'Intended Audience :: End Users/Desktop',
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
         ],
         author='Wichert Akkerman',
         author_email='wichert@wiggy.net',
