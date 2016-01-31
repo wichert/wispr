@@ -12,6 +12,7 @@ except ImportError:
     import urllib.parse as urlparse
 import requests
 
+TIMEOUT = 5
 
 MSG_REDIRECT = '100'
 MSG_PROXY = '110'
@@ -123,12 +124,17 @@ def do_wispr_login(r, username, password):
 
 
 def detect():
-    r = requests.get('http://www.google.com', allow_redirects=False, verify=False)
+    try:
+        r = requests.get('http://www.google.com', allow_redirects=False, verify=False, timeout=TIMEOUT)
+    except requests.exceptions.ConnectionError as e:
+        print('Error testing for network. Perhaps you are not connected to a network?',
+                file=sys.stderr)
+        return False
     while r.status_code in [302, 304]:
         if 'WISPAccessGatewayParam' in r.text:
             break
         else:
-            r = requests.get(r.headers['Location'], allow_redirects=False, verify=False)
+            r = requests.get(r.headers['Location'], allow_redirects=False, verify=False, timeout=TIMEOUT)
     if 'WISPAccessGatewayParam' not in r.text:
         if 'google' in urlparse.urlparse(r.url).hostname:
             print('Already online, no WISPr detection possible')
@@ -146,12 +152,17 @@ def detect():
 
 
 def wispr_login(username, password):
-    r = requests.get('http://www.google.com', allow_redirects=False, verify=False)
+    try:
+        r = requests.get('http://www.google.com', allow_redirects=False, verify=False, timeout=TIMEOUT)
+    except requests.exceptions.ConnectionError as e:
+        print('Error testing for network. Perhaps you are not connected to a network?',
+                file=sys.stderr)
+        return False
     while r.status_code in [302, 304]:
         if 'WISPAccessGatewayParam' in r.text:
             break
         else:
-            r = requests.get(r.headers['Location'], allow_redirects=False, verify=False)
+            r = requests.get(r.headers['Location'], allow_redirects=False, verify=False, timeout=TIMEOUT)
     if 'WISPAccessGatewayParam' in r.text:
         return do_wispr_login(r, username, password)
     host = urlparse.urlparse(r.url).hostname
@@ -212,7 +223,7 @@ def main():
         else:
             return wispr_login(options.username, options.password)
     except requests.exceptions.ConnectionError as e:
-        print('Error connecting to server: %s' % e)
+        print('Error connecting to server: %s' % e, file=sys.stderr)
     except KeyboardInterrupt:
         print('Aborting')
         return False
